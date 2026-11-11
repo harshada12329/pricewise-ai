@@ -146,6 +146,31 @@ function App() {
       total + (item.bestPrice ?? 0) * item.quantity,
     0
   )
+
+  //We are calculating the savings breakdown for each item in the optimized shopping list. The savings breakdown includes:
+  // - regularPrice: price at the recommended single store.
+  // - bestPrice: cheapest price among selected stores.
+  // - itemSavings: difference multiplied by quantity.
+
+  const savingsBreakdown =
+  recommendedStoreTotal === null
+    ? []
+    : optimizedItems.map((item) => {
+        const storeKey = recommendedStore.toLowerCase()
+
+        const regularPrice = item[storeKey]
+
+        if (item.bestPrice === null || typeof regularPrice !== 'number') {
+          return null
+        }
+
+        return {
+          ...item,
+          regularPrice,
+          itemSavings: (regularPrice - item.bestPrice) * item.quantity
+        }
+      }).filter(Boolean)
+
   // Keep basketSavings after optimizedTotal
   const basketSavings =
     recommendedStoreTotal === null
@@ -443,7 +468,9 @@ function App() {
 
           {basketSavings !== null && basketSavings > 0 && (
             <span>
-              Save ${basketSavings.toFixed(2)} by shopping across stores!
+               You can save an extra ${basketSavings.toFixed(2)} by buying 
+               each item from the selected store offering the lowest price,
+               instead of buying everything from {recommendedStore}.
             </span>
           )}
         </div>
@@ -461,6 +488,38 @@ function App() {
 
       </section>
       
+      
+      {shoppingList.length > 0 && savingsBreakdown.length > 0 && (
+        <div className="savings-breakdown">
+          <h3>💰 Your Savings Breakdown</h3>
+          <p>See how much you save by shopping across stores.</p>
+
+          {savingsBreakdown
+            .filter((item) => item.itemSavings > 0)
+            .map((item) => (
+              <div className="store-item" key={item.id}>
+                <span>
+                  {item.emoji} {item.name} × {item.quantity}
+                </span>
+
+                <strong className="item-savings">
+                  +${item.itemSavings.toFixed(2)}
+                </strong>
+              </div>
+            ))}
+
+          <div className="savings-total">
+            <span>Total Savings</span>
+            <strong>
+              ${savingsBreakdown
+                .reduce((total, item) => total + item.itemSavings, 0)
+                .toFixed(2)}
+            </strong>
+          </div>
+        </div>
+      )}
+
+
       <section className="ai-assistant">
         <div className="ai-heading">
           <span>🤖</span>

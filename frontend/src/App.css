@@ -526,3 +526,46 @@ footer small {
   accent-color: #21834c;
   cursor: pointer;
 }
+
+
+.savings-breakdown {
+  background: #f0faf4;
+  border: 1px solid #ccebd8;
+  border-radius: 14px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.savings-breakdown h3 {
+  color: #176b3a;
+  margin-bottom: 6px;
+}
+
+.savings-breakdown p {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.savings-breakdown .store-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #dcefe3;
+}
+
+.item-savings {
+  color: #168344;
+}
+
+.savings-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 2px solid #ccebd8;
+  color: #176b3a;
+  font-size: 18px;
+}
