@@ -228,15 +228,14 @@ function App() {
       userQuestion.includes('which store should i buy')
     ) {
       const recommendations = optimizedItems.map((item) => {
-        const bestStore =
-          item.walmart <= item.kroger ? 'Walmart' : 'Kroger'
+      if (item.bestStore === null) {
+        return `${item.name}: No price available at selected stores`
+      }
 
-        const bestPrice = Math.min(item.walmart, item.kroger)
+      return `${item.name} (${item.quantity}): ${item.bestStore} - $${(item.bestPrice * item.quantity).toFixed(2)}`
+    })
 
-        return `${item.name} (${item.quantity}): ${bestStore} - $${(bestPrice * item.quantity).toFixed(2)}`
-      })
-
-      setAiAnswer(recommendations.join(' | '))
+    setAiAnswer(recommendations.join(' | '))
     } else if (
       userQuestion.includes('save') ||
       userQuestion.includes('cheapest') ||
@@ -399,7 +398,7 @@ function App() {
         {shoppingList.length === 0 ? (
           <p>Your shopping list is empty. Add some groceries!</p>
         ) : (
-          shoppingList.map((item, index) => (
+          optimizedItems.map((item, index) => (
             <div className="list-item" key={item.id}>
             <div>
               <strong>{item.emoji} {item.name}</strong>
@@ -420,10 +419,12 @@ function App() {
 
             <div className="item-best-price">
               <span>
-                {item.walmart <= item.kroger ? 'Walmart' : 'Kroger'}
+                {item.bestStore || 'No selected store'}
               </span>
               <strong>
-                ${(Math.min(item.walmart, item.kroger) * item.quantity).toFixed(2)}
+                {item.bestPrice !== null
+                  ? `$${(item.bestPrice * item.quantity).toFixed(2)}`
+                  : 'No price'}
               </strong>
             </div>
             <button
@@ -496,34 +497,45 @@ function App() {
         </div>
       )}
 
+      
       {shoppingList.length > 0 && (
         <div className="store-lists">
-          {walmartItems.length > 0 && (
-            <div className="store-card">
-              <h3>🛒 Walmart Shopping List</h3>
+          {selectedStoreTotals.map((storeData) => {
+            const storeKey = storeData.store.toLowerCase()
 
-              {walmartItems.map((item) => (
-                <div className="store-item" key={item.id}>
-                  {item.emoji} {item.name} × {item.quantity}
-                </div>
-              ))}
+            const storeItems = optimizedItems.filter(
+              (item) => item.bestStore === storeData.store
+            )
 
-              <h4>Subtotal: ${walmartSubtotal.toFixed(2)}</h4>
-            </div>
-          )}
+            if (storeItems.length === 0) return null
 
-          {krogerItems.length > 0 && (
-            <div className="store-card">
-              <h3>🛒 Kroger Shopping List</h3>
+            return (
+              <div className="store-card" key={storeData.store}>
+                <h3>🛒 {storeData.store} Shopping List</h3>
 
-              {krogerItems.map((item) => (
-                <div className="store-item" key={item.id}>
-                  {item.emoji} {item.name} × {item.quantity}
-                </div>
-              ))}
+                {storeItems.map((item) => (
+                  <div className="store-item" key={item.id}>
+                    {item.emoji} {item.name} × {item.quantity}
+                  </div>
+                ))}
 
-              <h4>Subtotal: ${krogerSubtotal.toFixed(2)}</h4>
-            </div>
+                <h4>
+                  Subtotal: ${
+                    storeItems.reduce(
+                      (total, item) => total + item.bestPrice * item.quantity,
+                      0
+                    ).toFixed(2)
+                  }
+                </h4>
+              </div>
+            )
+          })}
+
+          {itemsWithoutSelectedPrices > 0 && (
+            <p className="missing-prices">
+              ⚠️ {itemsWithoutSelectedPrices} item(s) have no prices
+              at the selected stores.
+            </p>
           )}
 
           <div className="optimized-total">
