@@ -51,18 +51,55 @@ function App() {
     (total, item) => total + item.kroger * item.quantity,
     0
   )
-
-  const optimizedTotal = walmartSubtotal + krogerSubtotal
-
-  const cheapestStore =
-    walmartTotal < krogerTotal
-      ? 'Walmart'
-      : krogerTotal < walmartTotal
-      ? 'Kroger'
-      : 'Both stores have the same total'
-
-  const basketSavings = Math.abs(walmartTotal - krogerTotal)
   
+  // 1. Calculate totals for selected stores
+  const selectedStoreTotals = selectedStores.map((store) => {
+    const storeKey = store.toLowerCase()
+
+    const availableItems = shoppingList.filter(
+      (item) => typeof item[storeKey] === 'number'
+    )
+
+    const total = availableItems.reduce(
+      (sum, item) => sum + item[storeKey] * item.quantity,
+      0
+    )
+
+    return {
+      store,
+      total,
+      availableCount: availableItems.length,
+      missingCount: shoppingList.length - availableItems.length
+    }
+  })
+  
+  const completeStoreTotals = selectedStoreTotals.filter(
+    (store) =>
+      shoppingList.length > 0 &&
+      store.missingCount === 0
+  )
+
+  const recommendedStore =
+    shoppingList.length === 0
+      ? 'Add items to your list'
+      : selectedStores.length === 0
+      ? 'Select a store'
+      : completeStoreTotals.length === 0
+      ? 'No single selected store has all items'
+      : completeStoreTotals.reduce((best, current) =>
+          current.total < best.total ? current : best
+        ).store
+
+  const recommendedStoreTotal =
+    completeStoreTotals.length > 0
+      ? Math.min(...completeStoreTotals.map(store => store.total))
+      : null
+
+  const basketSavings =
+    recommendedStoreTotal === null
+      ? null
+      : Math.max(0, recommendedStoreTotal - optimizedTotal)
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
       .toLowerCase()
@@ -83,26 +120,41 @@ function App() {
       }))
       .filter(item => item.price !== undefined && item.price !== null)
   }
+  
 
-  const selectedStoreTotals = selectedStores.map((store) => {
-  const storeKey = store.toLowerCase()
+  // 2. Find the cheapest selected store for each item
+  const optimizedItems = shoppingList.map((item) => {
+    const prices = getSelectedStorePrices(item)
 
-  const availableItems = shoppingList.filter(
-    (item) => typeof item[storeKey] === 'number'
-  )
+    if (prices.length === 0) {
+      return {
+        ...item,
+        bestStore: null,
+        bestPrice: null
+      }
+    }
 
-  const total = availableItems.reduce(
-    (sum, item) => sum + item[storeKey] * item.quantity,
+    const best = prices.reduce((lowest, current) =>
+      current.price < lowest.price ? current : lowest
+    )
+
+    return {
+      ...item,
+      bestStore: best.store,
+      bestPrice: best.price
+    }
+  })
+
+  const optimizedTotal = optimizedItems.reduce(
+    (total, item) =>
+      total + (item.bestPrice ?? 0) * item.quantity,
     0
   )
 
-  return {
-    store,
-    total,
-    availableCount: availableItems.length,
-    missingCount: shoppingList.length - availableItems.length
-  }
-})
+  const itemsWithoutSelectedPrices = optimizedItems.filter(
+    (item) => item.bestPrice === null
+  ).length
+
 
   function addToList(product) {
     setShoppingList((currentList) => {
@@ -385,10 +437,11 @@ function App() {
 
         <div className="recommendation">
           <h3>🏆 Recommended Store</h3>
-          <p>{cheapestStore}</p>
-          {basketSavings > 0 && (
+          <p>{recommendedStore}</p>
+
+          {basketSavings !== null && basketSavings > 0 && (
             <span>
-              Save ${basketSavings.toFixed(2)} compared with the other store.
+              Save ${basketSavings.toFixed(2)} by shopping across stores!
             </span>
           )}
         </div>
@@ -396,6 +449,12 @@ function App() {
         <div>
           <h3>Smart Basket Total</h3>
           <p>${optimizedTotal.toFixed(2)}</p>
+          {itemsWithoutSelectedPrices > 0 && (
+            <p>
+              {itemsWithoutSelectedPrices} item(s) don't have prices
+              at selected stores. Total is partial.
+            </p>
+          )}
         </div>
 
       </section>
