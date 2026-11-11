@@ -72,7 +72,7 @@ function App() {
       missingCount: shoppingList.length - availableItems.length
     }
   })
-  
+
   const completeStoreTotals = selectedStoreTotals.filter(
     (store) =>
       shoppingList.length > 0 &&
@@ -95,11 +95,7 @@ function App() {
       ? Math.min(...completeStoreTotals.map(store => store.total))
       : null
 
-  const basketSavings =
-    recommendedStoreTotal === null
-      ? null
-      : Math.max(0, recommendedStoreTotal - optimizedTotal)
-
+  
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
       .toLowerCase()
@@ -150,6 +146,11 @@ function App() {
       total + (item.bestPrice ?? 0) * item.quantity,
     0
   )
+  // Keep basketSavings after optimizedTotal
+  const basketSavings =
+    recommendedStoreTotal === null
+      ? null
+      : Math.max(0, recommendedStoreTotal - optimizedTotal)
 
   const itemsWithoutSelectedPrices = optimizedItems.filter(
     (item) => item.bestPrice === null
@@ -226,7 +227,7 @@ function App() {
       userQuestion.includes('split') ||
       userQuestion.includes('which store should i buy')
     ) {
-      const recommendations = shoppingList.map((item) => {
+      const recommendations = optimizedItems.map((item) => {
         const bestStore =
           item.walmart <= item.kroger ? 'Walmart' : 'Kroger'
 
