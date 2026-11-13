@@ -18,12 +18,12 @@ function App() {
   const [shoppingList, setShoppingList] = useState([])
   const [question, setQuestion] = useState('')
   const [aiAnswer, setAiAnswer] = useState('')
-  
+
   const [selectedStores, setSelectedStores] = useState([
     'Walmart',
     'Kroger'
   ])
-  
+
   const walmartTotal = shoppingList.reduce(
     (total, item) => total + item.walmart * item.quantity,
     0
@@ -33,7 +33,7 @@ function App() {
     (total, item) => total + item.kroger * item.quantity,
     0
   )
-  
+
   const walmartItems = shoppingList.filter(
     (item) => item.walmart <= item.kroger
   )
@@ -51,7 +51,7 @@ function App() {
     (total, item) => total + item.kroger * item.quantity,
     0
   )
-  
+
   // 1. Calculate totals for selected stores
   const selectedStoreTotals = selectedStores.map((store) => {
     const storeKey = store.toLowerCase()
@@ -83,19 +83,19 @@ function App() {
     shoppingList.length === 0
       ? 'Add items to your list'
       : selectedStores.length === 0
-      ? 'Select a store'
-      : completeStoreTotals.length === 0
-      ? 'No single selected store has all items'
-      : completeStoreTotals.reduce((best, current) =>
-          current.total < best.total ? current : best
-        ).store
+        ? 'Select a store'
+        : completeStoreTotals.length === 0
+          ? 'No single selected store has all items'
+          : completeStoreTotals.reduce((best, current) =>
+            current.total < best.total ? current : best
+          ).store
 
   const recommendedStoreTotal =
     completeStoreTotals.length > 0
       ? Math.min(...completeStoreTotals.map(store => store.total))
       : null
 
-  
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
       .toLowerCase()
@@ -116,7 +116,7 @@ function App() {
       }))
       .filter(item => item.price !== undefined && item.price !== null)
   }
-  
+
 
   // 2. Find the cheapest selected store for each item
   const optimizedItems = shoppingList.map((item) => {
@@ -153,9 +153,9 @@ function App() {
   // - itemSavings: difference multiplied by quantity.
 
   const savingsBreakdown =
-  recommendedStoreTotal === null
-    ? []
-    : optimizedItems.map((item) => {
+    recommendedStoreTotal === null
+      ? []
+      : optimizedItems.map((item) => {
         const storeKey = recommendedStore.toLowerCase()
 
         const regularPrice = item[storeKey]
@@ -231,21 +231,37 @@ function App() {
       return
     }
 
-    
+
     if (
       userQuestion.includes('shopping list') ||
-      userQuestion.includes('separate list') ||
-      userQuestion.includes('split')
+      userQuestion.includes('separate list') 
     ) {
       setAiAnswer('Your store-wise shopping lists are displayed below.')
-    } else if (userQuestion.includes('walmart')) {
-      setAiAnswer(
-        `Your basket costs $${walmartTotal.toFixed(2)} at Walmart.`
+    } else if (
+      selectedStores.some((store) =>
+        userQuestion.includes(store.toLowerCase())
       )
-    } else if (userQuestion.includes('kroger')) {
-      setAiAnswer(
-        `Your basket costs $${krogerTotal.toFixed(2)} at Kroger.`
+    ) {
+      const mentionedStore = selectedStores.find((store) =>
+        userQuestion.includes(store.toLowerCase())
       )
+
+      const storeData = selectedStoreTotals.find(
+        (item) => item.store === mentionedStore
+      )
+
+      if (storeData.availableCount === 0) {
+        setAiAnswer(`No prices available at ${mentionedStore}.`)
+      }
+      else if (storeData.missingCount > 0) {
+        setAiAnswer(
+          `Your partial basket total at ${mentionedStore} is $${storeData.total.toFixed(2)}. ${storeData.missingCount} items have no prices.`
+        )
+      } else {
+        setAiAnswer(
+          `Your basket costs $${storeData.total.toFixed(2)} at ${mentionedStore}.`
+        )
+      }
     } else if (
       userQuestion.includes('each item') ||
       userQuestion.includes('each product') ||
@@ -253,31 +269,37 @@ function App() {
       userQuestion.includes('which store should i buy')
     ) {
       const recommendations = optimizedItems.map((item) => {
-      if (item.bestStore === null) {
-        return `${item.name}: No price available at selected stores`
-      }
+        if (item.bestStore === null) {
+          return `${item.name}: No price available at selected stores`
+        }
 
-      return `${item.name} (${item.quantity}): ${item.bestStore} - $${(item.bestPrice * item.quantity).toFixed(2)}`
-    })
+        return `${item.name} (${item.quantity}): ${item.bestStore} - $${(item.bestPrice * item.quantity).toFixed(2)}`
+      })
 
-    setAiAnswer(recommendations.join(' | '))
+      setAiAnswer(recommendations.join(' | '))
     } else if (
       userQuestion.includes('save') ||
       userQuestion.includes('cheapest') ||
       userQuestion.includes('best price')
     ) {
-      const cheaperStore =
-        walmartTotal <= krogerTotal ? 'Walmart' : 'Kroger'
 
-      const cheaperStoreTotal = Math.min(walmartTotal, krogerTotal)
-      const savings = cheaperStoreTotal - optimizedTotal
+      if (recommendedStoreTotal === null) {
+        setAiAnswer(
+          `No single selected store has all your products. Your best combined shopping total is $${optimizedTotal.toFixed(2)} across the selected stores.`
+        )
+      } else if (basketSavings > 0) {
+        setAiAnswer(
+          `Your cheapest single-store option is ${recommendedStore} at $${recommendedStoreTotal.toFixed(2)}. By purchasing each item from its cheapest selected store, your total becomes $${optimizedTotal.toFixed(2)}. You save $${basketSavings.toFixed(2)}!`
+        )
+      } else {
+        setAiAnswer(
+          `${recommendedStore} is your best single-store option at $${recommendedStoreTotal.toFixed(2)}. Shopping across multiple stores does not provide additional savings for this basket.`
+        )
+      }
 
-      setAiAnswer(
-        `Your cheapest single-store option is ${cheaperStore} at $${cheaperStoreTotal.toFixed(2)}. If you buy each product from its cheapest store, your total is $${optimizedTotal.toFixed(2)}. You could save $${savings.toFixed(2)} by splitting your shopping between stores.`
-      )
     } else {
       setAiAnswer(
-        `Your basket costs $${walmartTotal.toFixed(2)} at Walmart and $${krogerTotal.toFixed(2)} at Kroger. The optimized total is $${optimizedTotal.toFixed(2)}.`
+        `Your optimized shopping total across the selected stores is $${optimizedTotal.toFixed(2)}. Your recommended single-store option is ${recommendedStore}.`
       )
     }
   }
@@ -348,7 +370,7 @@ function App() {
 
         <div className="product-grid">
           {filteredProducts.map((product) => {
-            
+
             return (
               <article className="product-card" key={product.id}>
                 <div className="product-emoji">{product.emoji}</div>
@@ -419,46 +441,46 @@ function App() {
           </div>
         )}
 
-        
+
         {shoppingList.length === 0 ? (
           <p>Your shopping list is empty. Add some groceries!</p>
         ) : (
           optimizedItems.map((item, index) => (
             <div className="list-item" key={item.id}>
-            <div>
-              <strong>{item.emoji} {item.name}</strong>
-              <p>Quantity: {item.quantity}</p>
-            </div>
+              <div>
+                <strong>{item.emoji} {item.name}</strong>
+                <p>Quantity: {item.quantity}</p>
+              </div>
 
-            <div className="item-controls">
-              <button onClick={() => updateQuantity(item.id, -1)}>
-                −
+              <div className="item-controls">
+                <button onClick={() => updateQuantity(item.id, -1)}>
+                  −
+                </button>
+
+                <strong>{item.quantity}</strong>
+
+                <button onClick={() => updateQuantity(item.id, 1)}>
+                  +
+                </button>
+              </div>
+
+              <div className="item-best-price">
+                <span>
+                  {item.bestStore || 'No selected store'}
+                </span>
+                <strong>
+                  {item.bestPrice !== null
+                    ? `$${(item.bestPrice * item.quantity).toFixed(2)}`
+                    : 'No price'}
+                </strong>
+              </div>
+              <button
+                className="remove-button"
+                onClick={() => removeFromList(item.id)}
+              >
+                Remove
               </button>
-
-              <strong>{item.quantity}</strong>
-
-              <button onClick={() => updateQuantity(item.id, 1)}>
-                +
-              </button>
             </div>
-
-            <div className="item-best-price">
-              <span>
-                {item.bestStore || 'No selected store'}
-              </span>
-              <strong>
-                {item.bestPrice !== null
-                  ? `$${(item.bestPrice * item.quantity).toFixed(2)}`
-                  : 'No price'}
-              </strong>
-            </div>
-            <button
-              className="remove-button"
-              onClick={() => removeFromList(item.id)}
-            >
-              Remove
-            </button>
-          </div>
           ))
         )}
 
@@ -468,13 +490,13 @@ function App() {
 
           {basketSavings !== null && basketSavings > 0 && (
             <span>
-               You can save an extra ${basketSavings.toFixed(2)} by buying 
-               each item from the selected store offering the lowest price,
-               instead of buying everything from {recommendedStore}.
+              You can save an extra ${basketSavings.toFixed(2)} by buying
+              each item from the selected store offering the lowest price,
+              instead of buying everything from {recommendedStore}.
             </span>
           )}
         </div>
-        
+
         <div>
           <h3>Smart Basket Total</h3>
           <p>${optimizedTotal.toFixed(2)}</p>
@@ -487,8 +509,8 @@ function App() {
         </div>
 
       </section>
-      
-      
+
+
       {shoppingList.length > 0 && savingsBreakdown.length > 0 && (
         <div className="savings-breakdown">
           <h3>💰 Your Savings Breakdown</h3>
@@ -542,66 +564,85 @@ function App() {
             }}
           />
 
+          
+
           <button onClick={askAssistant}>
             Ask AI
           </button>
         </div>
 
-        
-      
-      {aiAnswer && (
-        <div className="ai-answer">
-          <strong>🤖 PriceWise says:</strong>
-          <p>{aiAnswer}</p>
-        </div>
-      )}
+        <div className="suggested-questions">
+          <p>Try asking:</p>
 
-      
-      {shoppingList.length > 0 && (
-        <div className="store-lists">
-          {selectedStoreTotals.map((storeData) => {
-            const storeKey = storeData.store.toLowerCase()
-
-            const storeItems = optimizedItems.filter(
-              (item) => item.bestStore === storeData.store
-            )
-
-            if (storeItems.length === 0) return null
-
-            return (
-              <div className="store-card" key={storeData.store}>
-                <h3>🛒 {storeData.store} Shopping List</h3>
-
-                {storeItems.map((item) => (
-                  <div className="store-item" key={item.id}>
-                    {item.emoji} {item.name} × {item.quantity}
-                  </div>
-                ))}
-
-                <h4>
-                  Subtotal: ${
-                    storeItems.reduce(
-                      (total, item) => total + item.bestPrice * item.quantity,
-                      0
-                    ).toFixed(2)
-                  }
-                </h4>
-              </div>
-            )
-          })}
-
-          {itemsWithoutSelectedPrices > 0 && (
-            <p className="missing-prices">
-              ⚠️ {itemsWithoutSelectedPrices} item(s) have no prices
-              at the selected stores.
-            </p>
-          )}
-
-          <div className="optimized-total">
-            <h3>Smart Basket Total: ${optimizedTotal.toFixed(2)}</h3>
+          {[
+            'Where can I save the most?',
+            'Which store is cheapest?',
+            'Show my shopping list',
+            'Which store should I buy each item from?'
+          ].map((suggestion) => (
+            <button
+              key={suggestion}
+              onClick={() => setQuestion(suggestion)}
+            >
+              {suggestion}
+            </button>
+          ))}
           </div>
-        </div>
-      )}
+
+
+        {aiAnswer && (
+          <div className="ai-answer">
+            <strong>🤖 PriceWise says:</strong>
+            <p>{aiAnswer}</p>
+          </div>
+        )}
+
+
+        {shoppingList.length > 0 && (
+          <div className="store-lists">
+            {selectedStoreTotals.map((storeData) => {
+              const storeKey = storeData.store.toLowerCase()
+
+              const storeItems = optimizedItems.filter(
+                (item) => item.bestStore === storeData.store
+              )
+
+              if (storeItems.length === 0) return null
+
+              return (
+                <div className="store-card" key={storeData.store}>
+                  <h3>🛒 {storeData.store} Shopping List</h3>
+
+                  {storeItems.map((item) => (
+                    <div className="store-item" key={item.id}>
+                      {item.emoji} {item.name} × {item.quantity}
+                    </div>
+                  ))}
+
+                  <h4>
+                    Subtotal: ${
+                      storeItems.reduce(
+                        (total, item) => total + item.bestPrice * item.quantity,
+                        0
+                      ).toFixed(2)
+                    }
+                  </h4>
+                </div>
+              )
+            })}
+
+            {itemsWithoutSelectedPrices > 0 && (
+              <p className="missing-prices">
+                ⚠️ {itemsWithoutSelectedPrices} item(s) have no prices
+                at the selected stores.
+              </p>
+            )}
+
+            <div className="optimized-total">
+              <h3>Smart Basket Total: ${optimizedTotal.toFixed(2)}</h3>
+            </div>
+          </div>
+        )}
 
       </section>
 
